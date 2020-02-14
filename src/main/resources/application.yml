@@ -1,0 +1,25 @@
+spring:
+  devtools:
+    restart:
+      enabled: true
+  profiles:
+    include: httpStatus
+  application:
+    name: qclient
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: GMT+8
+    mapper:
+      default_view_inclusion: false
+    default-property-inclusion: non_null
+  redis:
+    host: 127.0.0.1
+    port: 6379
+  rabbitmq:
+    username: admin
+    password: 123123
+    virtual-host: my_vhost
+    publisher-confirm-type: correlated
+server:
+  port: 7999
+
