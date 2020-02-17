@@ -37,6 +37,5 @@ public class Choice implements AnswerCell {
 	)
 	@JsonProperty("is_multi")
 	private Boolean isMulti;
-	private List<String> answer;
 	private List<Integer> index;
 }

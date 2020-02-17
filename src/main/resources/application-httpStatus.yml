@@ -49,3 +49,9 @@ TypeError:
 QuestionnaireAnswered:
   code: 4015
   msg: 当前问卷已回答，不能重复回答
+MissingServletRequestParameter:
+  code: 4016
+  msg: 缺少请求参数
+SubmitResultFailed:
+  code: 5002
+  msg: 提交失败，请稍后重试

@@ -9,9 +9,7 @@ import java.io.Serializable;
 import java.util.List;
 
 @Data
-
 public class ResultTemplate implements Serializable {
-	@Id
 	private String id;
 	@JsonProperty("finger_print")
 	private String fingerPrint;

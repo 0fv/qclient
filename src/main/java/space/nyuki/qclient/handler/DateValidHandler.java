@@ -1,8 +1,11 @@
 package space.nyuki.qclient.handler;
 
-import space.nyuki.qclient.exception.AnswerNotCorrectException;
+import space.nyuki.qclient.exception.SubmitResultFailedException;
+import space.nyuki.qclient.pojo.QuestionCell;
 import space.nyuki.qclient.pojo.answer.AnswerCell;
 import space.nyuki.qclient.pojo.answer.InquiryDate;
+import space.nyuki.qclient.pojo.result.ResultCell;
+import space.nyuki.qclient.pojo.result.ResultDate;
 
 import java.util.Date;
 import java.util.Objects;
@@ -12,12 +15,17 @@ public class DateValidHandler extends AbstractValidHandler {
 		this.type = type;
 	}
 
+
 	@Override
-	protected void valid(AnswerCell answerCell) {
-		InquiryDate date = (InquiryDate) answerCell;
-		Date answer = date.getAnswer();
-		if (Objects.isNull(answer)) {
-			throw new AnswerNotCorrectException();
+	protected void valid(QuestionCell questionCell, ResultCell resultCell) {
+		InquiryDate inquiryDate = (InquiryDate) questionCell.getAnswerCells().get(0);
+		if (questionCell.getMustAnswer() == 1) {
+			ResultDate resultDate = (ResultDate) resultCell;
+			Date answer = resultDate.getAnswer();
+			if (Objects.isNull(answer)) {
+				throw new SubmitResultFailedException();
+			}
 		}
+
 	}
 }

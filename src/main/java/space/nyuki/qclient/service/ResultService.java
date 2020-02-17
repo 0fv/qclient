@@ -1,17 +1,21 @@
 package space.nyuki.qclient.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.SneakyThrows;
 import org.springframework.amqp.rabbit.core.RabbitAdmin;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
-import space.nyuki.qclient.exception.TemplateNotFoundException;
+import space.nyuki.qclient.exception.SubmitResultFailedException;
 import space.nyuki.qclient.handler.AbstractValidHandler;
 import space.nyuki.qclient.pojo.*;
+import space.nyuki.qclient.pojo.result.ResultCell;
 
-import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.TimeUnit;
+
 
 @Service
 public class ResultService {
@@ -22,57 +26,43 @@ public class ResultService {
 	@Autowired
 	private RabbitAdmin rabbitAdmin;
 	@Autowired
+	private RedisTemplate<String, String> redisTemplate;
+	@Autowired
 	private RabbitTemplate.ConfirmCallback confirmCallback;
+	@Autowired
+	private AESService<SubmitResult> aesService;
 
-	public ResultTemplate getTemplate(String id) {
-		ResultTemplate resultTemplate;
-		QuestionnaireEntity entity = questionnaireEntityService.getDataById(id);
-		if (Objects.nonNull(entity)) {
-			List<QuestionGroup> questionGroups = entity.getQuestionGroups();
-			resultTemplate = getResultTemplate(id, questionGroups);
-		} else {
-			throw new TemplateNotFoundException();
+
+	private void valid(SubmitResult submitResult) {
+		QuestionnaireEntity entity = questionnaireEntityService.getDataById(submitResult.getId());
+		List<SubmitResultGroup> submitResultGroups = submitResult.getSubmitResultGroups();
+		List<QuestionGroup> questionGroups = entity.getQuestionGroups();
+		for (QuestionGroup questionGroup : questionGroups) {
+			List<QuestionCell> questionCells = questionGroup.getQuestionCells();
+			for (QuestionCell questionCell : questionCells) {
+				List<Integer> index = questionCell.getIndex();
+				ResultCell resultCell = submitResultGroups.get(index.get(0)).getResultCells().get(index.get(1));
+				validHandler.validMessage(questionCell,resultCell);
+			}
 		}
-		return resultTemplate;
 	}
 
-	private ResultTemplate getResultTemplate(String id, List<QuestionGroup> questionGroups) {
-		List<ResultGroup> resultGroups = new ArrayList<>();
-		questionGroups.forEach(n -> {
-			ResultGroup resultGroup = new ResultGroup();
-			resultGroup.setTitle(n.getTitle());
-			List<Result> results = new ArrayList<>();
-			n.getQuestionCells().forEach(m -> {
-				Result result = new Result();
-				result.setTitle(m.getTitle());
-				result.setAnswerCells(m.getAnswerCells());
-				result.setMustAnswer(m.getMustAnswer());
-				results.add(result);
-			});
-			resultGroup.setResults(results);
-			resultGroups.add(resultGroup);
-		});
-		ResultTemplate resultTemplate = new ResultTemplate();
-		resultTemplate.setId(id);
-		resultTemplate.setResultGroups(resultGroups);
-		return resultTemplate;
+	@SneakyThrows
+	public void getResult(String encryptData) {
+		SubmitResult submitResult =
+				aesService.decrypt(encryptData, SubmitResult.class).get(10, TimeUnit.SECONDS);
+		if (Objects.nonNull(submitResult)) {
+			sendResult(submitResult);
+		} else {
+			throw new SubmitResultFailedException();
+		}
 	}
 
-	private void valid(ResultTemplate resultTemplate) {
-		resultTemplate.getResultGroups().stream()
-				.map(ResultGroup::getResults)
-				.flatMap(Collection::stream)
-				.filter(n -> n.getMustAnswer() == 1)
-				.map(Result::getAnswerCells)
-				.flatMap(Collection::stream)
-				.forEach(this.validHandler::validMessage);
-	}
-
-	public void sendResult(ResultTemplate resultTemplate) {
-		questionnaireEntityService.answeredCheck(resultTemplate.getId(),resultTemplate.getFingerPrint());
-		valid(resultTemplate);
+	public void sendResult(SubmitResult submitResult) {
+		questionnaireEntityService.answeredCheck(submitResult.getId(), submitResult.getFingerPrint());
+		valid(submitResult);
 		RabbitTemplate rabbitTemplate = rabbitAdmin.getRabbitTemplate();
 		rabbitTemplate.setConfirmCallback(confirmCallback);
-		rabbitTemplate.convertAndSend("result", resultTemplate.getId(), resultTemplate);
+		rabbitTemplate.convertAndSend("result", submitResult.getId(), submitResult);
 	}
 }

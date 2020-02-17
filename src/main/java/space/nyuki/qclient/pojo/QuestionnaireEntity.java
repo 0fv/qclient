@@ -61,6 +61,9 @@ public class QuestionnaireEntity {
 	})
 	@JsonProperty("page_size")
 	private Integer pageSize;
+	@JsonView(GroupView.InputView.class)
+	@JsonProperty("submit_result_template")
+	private SubmitResult submitResultTemplate;
 	@JsonProperty("is_finish")
 	private int isFinish;
 	@JsonProperty("is_delete")
